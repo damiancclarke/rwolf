@@ -10,10 +10,10 @@ program rwolf, eclass
 vers 11.0
 #delimit ;
 syntax varlist(min=1 fv ts numeric) [if] [in] [pweight fweight aweight iweight],
-method(name)
+depvar(varlist max=1)
 [
+ method(name)
  controls(varlist fv ts)
- depvar(varlist max=1)
  seed(numlist integer >0 max=1)
  reps(integer 100)
  verbose
@@ -21,20 +21,48 @@ method(name)
 ;
 #delimit cr
 cap set seed `seed'
+if `"`method'"'=="" local method regress
 
-local j=1
+
+*-------------------------------------------------------------------------------
+*--- Run bootstrap reps to create null Studentized distribution
+*-------------------------------------------------------------------------------
+local j=0
 foreach var of varlist `varlist' {
+    local ++j
     tempfile file`j'
     #delimit ;
     bootstrap b`j'=_b[`depvar'], saving(`file`j'') reps(`reps'):
     `method' `var' `depvar' `controls' `if' `in' [`weight' `exp'];
     #delimit cr
-    local ++j
+    preserve
+    use `file`j'', clear
+    gen n=_n
+    qui save `file`j'', replace
+    restore
 }
 
 preserve
-use `file1', clear
-gen n=_n
-restore
+use `file1'
+if `j'>1 {
+    foreach jj of numlist 2(1)`j' {
+        merge 1:1 n using `file`jj''
+        drop _merge
+    }
+}
 
+*-------------------------------------------------------------------------------
+*--- Create null t-distribution
+*-------------------------------------------------------------------------------
+foreach num of numlist 1(1)`j' {
+    sum b`num'
+    replace b`num'=abs((b`num'-r(mean))/r(sd))
+}
+
+
+list
+
+
+
+restore
 end
