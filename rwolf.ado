@@ -1,5 +1,5 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 0.0.0 november 12, 2016 @ 22:25:56
+*! Version 0.1.0 november 24, 2016 @ 20:31:56
 *! Author: Damian Clarke
 *! Department of Economics
 *! Universidad de Santiago de Chile
@@ -16,7 +16,6 @@ depvar(varlist max=1)
  controls(varlist fv ts)
  seed(numlist integer >0 max=1)
  reps(integer 100)
- verbose
  ]
 ;
 #delimit cr
@@ -28,26 +27,37 @@ if `"`method'"'=="" local method regress
 *--- Run bootstrap reps to create null Studentized distribution
 *-------------------------------------------------------------------------------
 local j=0
+local cand
+dis "Running `reps' bootstrap replications for each variable.  This may take some time"
 foreach var of varlist `varlist' {
     local ++j
+    cap qui `method' `var' `depvar' `controls' `if' `in' [`weight' `exp']
+    if _rc!=0 {
+        dis as error "Your original `method' does not work.  Please review the model syntax."
+        exit _rc
+    }
+    local t`j' = abs(_b[`depvar']/_se[`depvar'])
+    local n`j' = e(N)
+    local cand `cand' `j'
+    
     tempfile file`j'
     #delimit ;
-    bootstrap b`j'=_b[`depvar'], saving(`file`j'') reps(`reps'):
+    qui bootstrap b`j'=_b[`depvar'], saving(`file`j'') reps(`reps'):
     `method' `var' `depvar' `controls' `if' `in' [`weight' `exp'];
     #delimit cr
     preserve
-    use `file`j'', clear
-    gen n=_n
+    qui use `file`j'', clear
+    qui gen n=_n
     qui save `file`j'', replace
     restore
 }
 
 preserve
-use `file1'
+qui use `file1', clear
 if `j'>1 {
     foreach jj of numlist 2(1)`j' {
-        merge 1:1 n using `file`jj''
-        drop _merge
+        qui merge 1:1 n using `file`jj''
+        qui drop _merge
     }
 }
 
@@ -55,14 +65,67 @@ if `j'>1 {
 *--- Create null t-distribution
 *-------------------------------------------------------------------------------
 foreach num of numlist 1(1)`j' {
-    sum b`num'
-    replace b`num'=abs((b`num'-r(mean))/r(sd))
+    qui sum b`num'
+    qui replace b`num'=abs((b`num'-r(mean))/r(sd))
 }
 
+*-------------------------------------------------------------------------------
+*--- Create stepdown value in descending order based on t-stats
+*-------------------------------------------------------------------------------
+local maxt = 0
+local pval = 0
+local rank
 
-list
+while length("`cand'")!=0 {
+    local donor_tvals
 
-
-
+    foreach var of local cand {
+        if `t`var''>`maxt' {
+            local maxt = `t`var''
+            local maxv `var'
+        }
+        qui dis "Maximum t among remaining candidates is `maxt' (variable `maxv')"
+        local donor_tvals `donor_tvals' b`var'
+    }
+    qui egen empiricalDist = rowmax(`donor_tvals')
+    sort empiricalDist
+    forvalues cnum = 1(1)`reps' {
+        qui sum empiricalDist in `cnum'
+        local cval = r(mean)
+        if `maxt'>`cval' {
+            local pval = 1-((`cnum'+1)/(`reps'+1))
+        }
+    }
+    local p`maxv'   = string(ttail(`n`maxv'',`maxt')*2,"%6.4f")
+    local prm`maxv' = string(`pval',"%6.4f")
+    
+    drop empiricalDist
+    local rank `rank' `maxv'
+    local candnew
+    foreach c of local cand {
+        local match = 0
+        foreach r of local rank {
+            if `r'==`c' local match = 1
+        }
+        if `match'==0 local candnew `candnew' `c'
+    }
+    local cand `candnew'
+    local maxt = 0
+    local maxv = 0
+}
 restore
+
+*-------------------------------------------------------------------------------
+*--- Report y export p-values
+*-------------------------------------------------------------------------------
+local j=0
+dis _newline
+foreach var of varlist `varlist' {
+    local ++j
+    local ORIG "Original p-value is `p`j''"
+    local RW "Romano Wolf p-value is `prm`j''"
+    dis "For the variable `var': `ORIG'. `RW'."
+    ereturn scalar rw_`var'=`prm`j''
+}   
+
 end
