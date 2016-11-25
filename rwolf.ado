@@ -10,12 +10,13 @@ program rwolf, eclass
 vers 11.0
 #delimit ;
 syntax varlist(min=1 fv ts numeric) [if] [in] [pweight fweight aweight iweight],
-depvar(varlist max=1)
+indepvar(varlist max=1)
 [
  method(name)
  controls(varlist fv ts)
  seed(numlist integer >0 max=1)
  reps(integer 100)
+ *
  ]
 ;
 #delimit cr
@@ -31,19 +32,20 @@ local cand
 dis "Running `reps' bootstrap replications for each variable.  This may take some time"
 foreach var of varlist `varlist' {
     local ++j
-    cap qui `method' `var' `depvar' `controls' `if' `in' [`weight' `exp']
+    cap qui `method' `var' `indepvar' `controls' `if' `in' [`weight' `exp'], `options'
     if _rc!=0 {
         dis as error "Your original `method' does not work.  Please review the model syntax."
         exit _rc
     }
-    local t`j' = abs(_b[`depvar']/_se[`depvar'])
-    local n`j' = e(N)
+    local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
+    local n`j' = e(N)-e(rank)
+    if `"`method'"'=="areg" local n`j' = e(df_r)
     local cand `cand' `j'
     
     tempfile file`j'
     #delimit ;
-    qui bootstrap b`j'=_b[`depvar'], saving(`file`j'') reps(`reps'):
-    `method' `var' `depvar' `controls' `if' `in' [`weight' `exp'];
+    qui bootstrap b`j'=_b[`indepvar'], saving(`file`j'') reps(`reps'):
+    `method' `var' `indepvar' `controls' `if' `in' [`weight' `exp'], `options';
     #delimit cr
     preserve
     qui use `file`j'', clear
