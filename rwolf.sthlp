@@ -44,30 +44,32 @@ help for {hi:rwolf}
 {title:Description}
 
 {p 6 6 2}
-{hi:rwolf} is 
+{hi:rwolf} calculates Romano and Wolf's (2005a,b) stepdown adjusted p-values robust to multiple hypothesis testing.  This program follows the algorithm described in Romano and Wolf (2016), and provides a p-value corresponding to each of a series of J independent variables when running testing multiple hypotheses against a single dependent (or treatment) variable.  The {hi:rwolf} algorithm constructs a null distribution for each of the J hypothesis tests based on Studentized bootstrap replications of a subset of the tested variables.  Full details of the process are describe in Romano and Wolf (2016).
 
 {p 6 6 2}
-Paragraph 2.
+{hi:rwolf} requires multiple independent variables to be tested, a single dependent variable, and (optionally) a series of control variables which should be included in each test.
+    {hi:rwolf} works with any {help regress:estimation-based regression command} allowed in Stata, which should be indicated using the {cmd:method} option.
+    If not specified, {help:regress} is assumed.  Optionally, regression {help weight}s, {help if} or {help in} can be specified.  By default, 100 {help bootstrap} replications are run for each of the J multiple hypotheses.  Where possible, a larger number of replications should be preferred.
+    Replications are set using the {cmd:reps({help bootstrap:#})} option, and to replicate results, the {cmd:seed({help seed:#})} should be set.
 
 {p 6 6 2}
-Paragraph 3.
-
+The command returns the Romano Wolf p-value corresponding to each variable, and for reference, the original uncorrected (analytical) p-value from the initial tests.
+    {hi:rwolf} is an e-class command, and the Romano Wolf p-value for each variable is returned as a scalar in e(rw_varname).
 
 {marker examples}{...}
 {title:Examples}
 
     {hline}
-{pstd}Search the auto dataset for the significant predictors of car price{break}
+{pstd}Use the auto dataset to run multiple regressions of various dependent variables on a single dependent variable of interest (price) controlling for foriegn.  {break}
 
 {phang2}{cmd:. sysuse auto}{p_end}
-{phang2}{cmd:. genspec price mpg rep78 headroom trunk weight length foreign turn displace}{p_end}
+{phang2}{cmd:. rwolf var1 var2 var3 var4, indepvar(price) controls()}{p_end}
 
     {hline}
 
-{pstd}Search the auto dataset for the significant predictors of car price at 70th quantile of price {break}
+{pstd}Run the same analysis, however using areg to absorb a series of fixed effects {break}
 
-{phang2}{cmd:. sysuse auto}{p_end}
-{phang2}{cmd:. genspec price mpg rep78 headroom trunk weight length foreign turn displace, qreg quantile(70)}{p_end}
+{phang2}{cmd:. rwolf var1 var2 var3 var4, indepvar(price) controls() method(areg) abs()}{p_end}
 
     {hline}
 
@@ -79,33 +81,19 @@ Paragraph 3.
 
     {hline}
 
-{pstd}Predict variables for Hoover and Perez (1999)'s time-series model 5{p_end}
-
-{pstd}Setup{p_end}
-{phang2}{cmd:. webuse set http://users.ox.ac.uk/~ball3491/}{p_end}
-{phang2}{cmd:. webuse gets_data}{p_end}
-{phang2}{cmd:. qui ds y* u* time, not}{p_end}
-{phang2}{cmd:. local xvars `r(varlist)'}{p_end}
-{phang2}{cmd:. local lags l.dcoinc l.gd l.ggeq l.ggfeq l.ggfr l.gnpq l.gydq l.gpiq l.fmrra l.fmbase l.fm1dq l.fm2dq l.fsdj l.fyaaac l.lhc l.lhur l.mu l.mo}{p_end}
-
-{phang2}{cmd:. genspec y5 `xvars' `lags' l.y5 l2.y5 l3.y5 l4.y5, ts}{p_end}
-
-    {hline}
 
 
 {marker results}{...}
 {title:Saved results}
 
 {pstd}
-{cmd:genspec} saves the following in {cmd:e()}:
+{cmd:rwolf} saves the following in {cmd:e()}:
 
 {synoptset 10 tabbed}{...}
 {p2col 5 20 24 2: Scalars}{p_end}
-{synopt:{cmd:e(fit)}}Bayesian Information Criterion of final specification {p_end}
+{synopt:{cmd:e(rw_var1)}}The Romano Wolf p-value associated with variable 1 (var1 will be changed for variable name) {p_end}
+{synopt:{cmd:e(rw_varJ)}}The Romano Wolf p-value associated with variable J.  Each of the independent variables will be returned in this way. {p_end}
 
-{synoptset 10 tabbed}{...}
-{p2col 5 20 24 2: Macros}{p_end}
-{synopt:{cmd:e(cmd)}}List of variables from the final specification {p_end}
 	
 
 {marker references}{...}
