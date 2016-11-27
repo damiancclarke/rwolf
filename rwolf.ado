@@ -34,7 +34,7 @@ foreach var of varlist `varlist' {
     local ++j
     cap qui `method' `var' `indepvar' `controls' `if' `in' [`weight' `exp'], `options'
     if _rc!=0 {
-        dis as error "Your original `method' does not work.  Please review the model syntax."
+        dis as error "Your original `method' does not work.  Please test the `method' and try again."
         exit _rc
     }
     local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
@@ -100,6 +100,7 @@ while length("`cand'")!=0 {
     }
     local p`maxv'   = string(ttail(`n`maxv'',`maxt')*2,"%6.4f")
     local prm`maxv' = string(`pval',"%6.4f")
+    local prm`maxv's= `pval'
     
     drop empiricalDist
     local rank `rank' `maxv'
@@ -127,7 +128,7 @@ foreach var of varlist `varlist' {
     local ORIG "Original p-value is `p`j''"
     local RW "Romano Wolf p-value is `prm`j''"
     dis "For the variable `var': `ORIG'. `RW'."
-    ereturn scalar rw_`var'=`prm`j''
+    ereturn scalar rw_`var'=`prm`j's'
 }   
 
 end
