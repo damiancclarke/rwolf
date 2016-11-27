@@ -98,9 +98,11 @@ while length("`cand'")!=0 {
             local pval = 1-((`cnum'+1)/(`reps'+1))
         }
     }
-    local p`maxv'   = string(ttail(`n`maxv'',`maxt')*2,"%6.4f")
-    local prm`maxv' = string(`pval',"%6.4f")
     local prm`maxv's= `pval'
+    if length(`"`prmsm1'"')!=0 local prm`maxv's=max(`prm`maxv's',`prmsm1')
+    local p`maxv'   = string(ttail(`n`maxv'',`maxt')*2,"%6.4f")
+    local prm`maxv' = string(`prm`maxv's',"%6.4f")
+    local prmsm1 = `prm`maxv's'
     
     drop empiricalDist
     local rank `rank' `maxv'
