@@ -1,5 +1,5 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 0.1.0 november 24, 2016 @ 20:31:56
+*! Version 1.0.0 december 01, 2016 @ 17:56:31
 *! Author: Damian Clarke
 *! Department of Economics
 *! Universidad de Santiago de Chile
