@@ -7,7 +7,7 @@ help for {hi:rwolf}
 {title:Title}
 
 {p 8 20 2}
-    {hi:rwolf} {hline 2} Calculate Romano-Wolf p-values for stepdown multiple hypothesis testing
+    {hi:rwolf} {hline 2} Calculate Romano-Wolf stepdown p-values for multiple hypothesis testing
 
 {title:Syntax}
 
@@ -47,18 +47,19 @@ See {help regress} for a full list of estimation commands in Stata.
 {p 6 6 2}
 {hi:rwolf} calculates Romano and Wolf's (2005a,b) stepdown adjusted p-values robust to multiple hypothesis testing.
 This program follows the algorithm described in Romano and Wolf (2016), and provides a p-value corresponding to each
-of a series of J independent variables when running testing multiple hypotheses against a single dependent
+of a series of J independent variables when testing multiple hypotheses against a single dependent
 (or treatment) variable.  The {hi:rwolf} algorithm constructs a null distribution for each of the J hypothesis tests
-based on Studentized bootstrap replications of a subset of the tested variables.  Full details of the process are
-describe in Romano and Wolf (2016).
+based on Studentized bootstrap replications of a subset of the tested variables.  Full details of the procedure are
+described in Romano and Wolf (2016).
 
 {p 6 6 2}
 {hi:rwolf} requires multiple independent variables to be tested, a single dependent variable, and (optionally) a series
 of control variables which should be included in each test.  {hi:rwolf} works with any
-{help regress:estimation-based regression command} allowed in Stata, which should be indicated using the {cmd:method}
-option. If not specified, {help:regress} is assumed.  Optionally, regression {help weight}s, {help if} or {help in} can
+{help regress:estimation-based regression command} allowed in Stata, which should be indicated using the {cmd:method()}
+option. If not specified, {help regress} is assumed.  Optionally, regression {help weight}s, {help if} or {help in} can
 be specified.  By default, 100 {help bootstrap} replications are run for each of the J multiple hypotheses.
-Where possible, a larger number of replications should be preferred.  Replications are set using the
+Where possible, a larger number of replications should be preferred given that p-values are computed by comparing estimates
+to a bootstrap null distribution constructed from these replications.  The number of replications is set using the
 {cmd:reps({help bootstrap:#})} option, and to replicate results, the {cmd:seed({help seed:#})} should be set.
 
 {p 6 6 2}
@@ -70,7 +71,7 @@ variable is returned as a scalar in e(rw_varname).
 {title:Examples}
 
     {hline}
-{pstd}Use the auto dataset to run multiple regressions of various dependent variables on a single dependent variable of interest (price) controlling for foriegn.  {break}
+{pstd}Use the auto dataset to run multiple regressions of various independent variables on a single dependent variable of interest (weight) controlling for trunk and mpg.  {break}
 
 {phang2}{cmd:. sysuse auto}{p_end}
 {phang2}{cmd:. rwolf headroom turn price rep78, indepvar(weight) controls(trunk mpg) reps(250)}{p_end}
