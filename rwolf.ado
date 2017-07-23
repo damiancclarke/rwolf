@@ -1,9 +1,16 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 1.0.0 december 01, 2016 @ 17:56:31
+*! Version 1.1.0 july 23, 2017 @ 11:03:44
 *! Author: Damian Clarke
 *! Department of Economics
 *! Universidad de Santiago de Chile
 *! damian.clarke@usach.cl
+
+/*
+version highlights:
+1.0.0 [01/12/2016]: Romano Wolf Procedure exporting p-values
+1.1.0: Experimental weighting procedure within bootstrap to allow weights
+*/
+
 
 cap program drop rwolf
 program rwolf, eclass
@@ -16,6 +23,7 @@ indepvar(varlist max=1)
  controls(varlist fv ts)
  seed(numlist integer >0 max=1)
  reps(integer 100)
+ Verbose
  *
  ]
 ;
@@ -25,33 +33,92 @@ if `"`method'"'=="" local method regress
 
 
 *-------------------------------------------------------------------------------
-*--- Run bootstrap reps to create null Studentized distribution
+*--- Run bootstrap reps to create null Studentized distribution [UNWEIGHTED]
 *-------------------------------------------------------------------------------
-local j=0
-local cand
 dis "Running `reps' bootstrap replications for each variable.  This may take some time"
-foreach var of varlist `varlist' {
-    local ++j
-    cap qui `method' `var' `indepvar' `controls' `if' `in' [`weight' `exp'], `options'
-    if _rc!=0 {
-        dis as error "Your original `method' does not work.  Please test the `method' and try again."
-        exit _rc
+if length(`"`weight'"')==0 {
+    local j=0
+    local cand
+    foreach var of varlist `varlist' {
+        local ++j
+        cap qui `method' `var' `indepvar' `controls' `if' `in', `options'
+        if _rc!=0 {
+            dis as error "Your original `method' does not work."
+            dis as error "Please test the `method' and try again."
+            exit _rc
+        }
+        local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
+        local n`j' = e(N)-e(rank)
+        if `"`method'"'=="areg" local n`j' = e(df_r)
+        local cand `cand' `j'
+        
+        tempfile file`j'
+        if length(`"`verbose'"')==0 {
+            #delimit ;
+            qui bootstrap b`j'=_b[`indepvar'], saving(`file`j'') reps(`reps'):
+                `method' `var' `indepvar' `controls' `if' `in', `options';
+            #delimit cr
+        }
+        else {
+            #delimit ;
+            bootstrap b`j'=_b[`indepvar'], saving(`file`j'') reps(`reps'):
+                `method' `var' `indepvar' `controls' `if' `in', `options';
+            #delimit cr
+        }
+        preserve
+        qui use `file`j'', clear
+        qui gen n=_n
+        qui save `file`j'', replace
+        restore
     }
-    local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
-    local n`j' = e(N)-e(rank)
-    if `"`method'"'=="areg" local n`j' = e(df_r)
-    local cand `cand' `j'
+}
+*-------------------------------------------------------------------------------
+*--- Run bootstrap reps to create null Studentized distribution [WEIGHTED]
+*-------------------------------------------------------------------------------
+qui count
+local Nobs1 = r(N)
+if length(`"`weight'"')!=0 {
+    local j=0
+    local cand
+    local wt [`weight' `exp']
     
-    tempfile file`j'
-    #delimit ;
-    qui bootstrap b`j'=_b[`indepvar'], saving(`file`j'') reps(`reps'):
-    `method' `var' `indepvar' `controls' `if' `in' [`weight' `exp'], `options';
-    #delimit cr
-    preserve
-    qui use `file`j'', clear
-    qui gen n=_n
-    qui save `file`j'', replace
-    restore
+    foreach var of varlist `varlist' {
+        local ++j
+        cap qui `method' `var' `indepvar' `controls' `if' `in' `wt', `options'
+        if _rc!=0 {
+            dis as error "Your original `method' does not work."
+            dis as error "Please test the `method' and try again."
+            exit _rc
+        }
+        local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
+        local n`j' = e(N)-e(rank)
+        if `"`method'"'=="areg" local n`j' = e(df_r)
+        local cand `cand' `j'
+        
+        qui count
+        local Nobs = r(N)
+        if `reps'>`Nobs' qui set obs `reps'
+        tempvar b`j'
+        qui gen `b`j''=.
+        forvalues i=1/`reps' {
+            if length(`"`verbose'"')!=0 dis "Bootstrap sample `i' for `var'"
+            preserve
+            bsample `if' `in' 
+            qui `method' `var' `indepvar' `controls' `if' `in' `wt', `options'
+            local bval = _b[`indepvar']
+            restore
+            qui replace `b`j'' = `bval' in `i'
+        }
+        preserve
+        keep `b`j''
+        rename `b`j'' b`j'
+        gen n=_n
+        tempfile file`j'
+        qui save `file`j'', replace
+        restore
+        drop `b`j''
+    }
+    if `reps'>`Nobs1' qui keep in 1/`Nobs1'
 }
 
 preserve
@@ -121,7 +188,7 @@ while length("`cand'")!=0 {
 restore
 
 *-------------------------------------------------------------------------------
-*--- Report y export p-values
+*--- Report and export p-values
 *-------------------------------------------------------------------------------
 local j=0
 dis _newline
