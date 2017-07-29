@@ -24,6 +24,7 @@ indepvar(varlist max=1)
  seed(numlist integer >0 max=1)
  reps(integer 100)
  Verbose
+ manual
  *
  ]
 ;
@@ -31,12 +32,11 @@ indepvar(varlist max=1)
 cap set seed `seed'
 if `"`method'"'=="" local method regress
 
-
 *-------------------------------------------------------------------------------
 *--- Run bootstrap reps to create null Studentized distribution [UNWEIGHTED]
 *-------------------------------------------------------------------------------
 dis "Running `reps' bootstrap replications for each variable.  This may take some time"
-if length(`"`weight'"')==0 {
+if length(`"`weight'"')==0&length(`"`manual'"')==0 {
     local j=0
     local cand
     foreach var of varlist `varlist' {
@@ -65,6 +65,13 @@ if length(`"`weight'"')==0 {
                 `method' `var' `indepvar' `controls' `if' `in', `options';
             #delimit cr
         }
+        if e(N_misreps)!=0 {
+            local mr = e(N_misreps)
+            dis ""
+            dis as error "`mr' bootstrap replications could not be estimated for `var'."
+            dis as error "To correct this, the manual option is recommended."
+        }
+        
         preserve
         qui use `file`j'', clear
         qui gen n=_n
@@ -77,7 +84,7 @@ if length(`"`weight'"')==0 {
 *-------------------------------------------------------------------------------
 qui count
 local Nobs1 = r(N)
-if length(`"`weight'"')!=0 {
+if length(`"`weight'"')!=0|length(`"`manual'"')!=0 {
     local j=0
     local cand
     local wt [`weight' `exp']
