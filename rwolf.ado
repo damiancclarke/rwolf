@@ -1,5 +1,5 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 1.1.0 july 23, 2017 @ 11:03:44
+*! Version 2.0.0 october 16, 2017 @ 21:12:06
 *! Author: Damian Clarke
 *! Department of Economics
 *! Universidad de Santiago de Chile
@@ -8,7 +8,8 @@
 /*
 version highlights:
 1.0.0 [01/12/2016]: Romano Wolf Procedure exporting p-values
-1.1.0: Experimental weighting procedure within bootstrap to allow weights
+1.1.0:[23/07/2017]: Experimental weighting procedure within bootstrap to allow weights
+2.0.0: bsample exclusively.  Add cluster and strata for bsample
 */
 
 
@@ -24,125 +25,76 @@ indepvar(varlist max=1)
  seed(numlist integer >0 max=1)
  reps(integer 100)
  Verbose
- manual
+ strata(varlist)
+ cluster(varlist)
  *
  ]
 ;
 #delimit cr
 cap set seed `seed'
 if `"`method'"'=="" local method regress
+local bopts
+if length(`"`strata'"')!=0  local bopts `bopts' strata(`strata')
+if length(`"`cluster'"')!=0 local bopts `bopts' cluster(`cluster')
+
+
 
 *-------------------------------------------------------------------------------
-*--- Run bootstrap reps to create null Studentized distribution [UNWEIGHTED]
-*-------------------------------------------------------------------------------
-dis "Running `reps' bootstrap replications for each variable.  This may take some time"
-if length(`"`weight'"')==0&length(`"`manual'"')==0 {
-    local j=0
-    local cand
-    foreach var of varlist `varlist' {
-        local ++j
-        cap qui `method' `var' `indepvar' `controls' `if' `in', `options'
-        if _rc!=0 {
-            dis as error "Your original `method' does not work."
-            dis as error "Please test the `method' and try again."
-            exit _rc
-        }
-        local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
-        local n`j' = e(N)-e(rank)
-        if `"`method'"'=="areg" local n`j' = e(df_r)
-        local cand `cand' `j'
-        
-        tempfile file`j'
-        if length(`"`verbose'"')==0 {
-            #delimit ;
-            qui bootstrap b`j'=_b[`indepvar'], saving(`file`j'') reps(`reps'):
-                `method' `var' `indepvar' `controls' `if' `in', `options';
-            #delimit cr
-        }
-        else {
-            #delimit ;
-            bootstrap b`j'=_b[`indepvar'], saving(`file`j'') reps(`reps'):
-                `method' `var' `indepvar' `controls' `if' `in', `options';
-            #delimit cr
-        }
-        if e(N_misreps)!=0 {
-            local mr = e(N_misreps)
-            dis ""
-            dis as error "`mr' bootstrap replications could not be estimated for `var'."
-            dis as error "To correct this, the manual option is recommended."
-        }
-        
-        preserve
-        qui use `file`j'', clear
-        qui gen n=_n
-        qui save `file`j'', replace
-        restore
+*--- Run bootstrap reps to create null Studentized distribution
+*-------------------------------------------------------------------------------    
+local j=0
+local cand
+local wt [`weight' `exp']
+
+tempname nullvals
+tempfile nullfile
+file open `nullvals' using "`nullfile'", write all
+
+
+foreach var of varlist `varlist' {
+    local ++j
+    cap qui `method' `var' `indepvar' `controls' `if' `in' `wt', `options'
+    if _rc!=0 {
+        dis as error "Your original `method' does not work."
+        dis as error "Please test the `method' and try again."
+        exit _rc
     }
+    local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
+    local n`j' = e(N)-e(rank)
+    if `"`method'"'=="areg" local n`j' = e(df_r)
+    local cand `cand' `j'
+    
+    file write `nullvals' "b`j'; se`j';"
 }
-*-------------------------------------------------------------------------------
-*--- Run bootstrap reps to create null Studentized distribution [WEIGHTED]
-*-------------------------------------------------------------------------------
-qui count
-local Nobs1 = r(N)
-if length(`"`weight'"')!=0|length(`"`manual'"')!=0 {
+
+
+dis "Running `reps' bootstrap replications for each variable.  This may take some time"
+forvalues i=1/`reps' {
+    if length(`"`verbose'"')!=0 dis "Bootstrap sample `i'."
     local j=0
-    local cand
-    local wt [`weight' `exp']
+    local memoize
+    preserve
+    bsample `if' `in', `bopts'
     
     foreach var of varlist `varlist' {
         local ++j
-        cap qui `method' `var' `indepvar' `controls' `if' `in' `wt', `options'
-        if _rc!=0 {
-            dis as error "Your original `method' does not work."
-            dis as error "Please test the `method' and try again."
-            exit _rc
-        }
-        local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
-        local n`j' = e(N)-e(rank)
-        if `"`method'"'=="areg" local n`j' = e(df_r)
-        local cand `cand' `j'
-        
-        qui count
-        local Nobs = r(N)
-        if `reps'>`Nobs' qui set obs `reps'
-        tempvar b`j'
-        qui gen `b`j''=.
-        forvalues i=1/`reps' {
-            if length(`"`verbose'"')!=0 dis "Bootstrap sample `i' for `var'"
-            preserve
-            bsample `if' `in' 
-            qui `method' `var' `indepvar' `controls' `if' `in' `wt', `options'
-            local bval = _b[`indepvar']
-            restore
-            qui replace `b`j'' = `bval' in `i'
-        }
-        preserve
-        keep `b`j''
-        rename `b`j'' b`j'
-        gen n=_n
-        tempfile file`j'
-        qui save `file`j'', replace
-        restore
-        drop `b`j''
+        qui `method' `var' `indepvar' `controls' `if' `in' `wt', `options'
+        if `j'==1 file write `nullvals' _n "`= _b[`indepvar']';`= _se[`indepvar']'"
+        else file write `nullvals' ";`= _b[`indepvar']';`= _se[`indepvar']'"
     }
-    if `reps'>`Nobs1' qui keep in 1/`Nobs1'
+    restore
 }
 
 preserve
-qui use `file1', clear
-if `j'>1 {
-    foreach jj of numlist 2(1)`j' {
-        qui merge 1:1 n using `file`jj''
-        qui drop _merge
-    }
-}
+file close `nullvals'
+qui insheet using `nullfile', delim(";") names clear
 
 *-------------------------------------------------------------------------------
 *--- Create null t-distribution
 *-------------------------------------------------------------------------------
 foreach num of numlist 1(1)`j' {
     qui sum b`num'
-    qui replace b`num'=abs((b`num'-r(mean))/r(sd))
+    qui replace b`num'=abs((b`num'-r(mean))/se`num')
 }
 
 *-------------------------------------------------------------------------------
@@ -192,6 +144,7 @@ while length("`cand'")!=0 {
     local maxt = 0
     local maxv = 0
 }
+
 restore
 
 *-------------------------------------------------------------------------------
