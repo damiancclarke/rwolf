@@ -26,13 +26,23 @@ See {help regress} for a full list of estimation commands in Stata.
     If not specified, {help regress} is assumed.
 {p_end}
 {...}
-{synopt :{cmd:controls({help varlist})}}Lists all other control variables which are to be included in the model to be tested multiple times.  Any variable format accepted by {help varlist} is permitted including time series and factor variables.
+{synopt :{cmd:controls({help varlist})}}Lists all other control variables which are to be included in th model to be tested multiple times.  Any variable format accepted by {help varlist} is permitted including time series and factor variables.
 {p_end}
 {...}
 {synopt :{cmd:seed({help set seed:#})}}Seets seed to indicate the initial value for the pseudo-random number generator.  # can be any integer between 0 and 2^31-1. 
 {p_end}
 {...}
 {synopt :{cmd:reps({help bootstrap:#})}}Perform # bootstrap replication; default is reps(100).  Where possible prefer a larger number of replications for more precise p-values.
+{p_end}
+{...}
+{synopt :{cmd:strata({help varlist})}} specifies the variables identifying strata.  If strata() is specified, bootstrap samples are selected within each stratum when forming the resampled null distributions.
+{p_end}
+{...}
+{synopt :{cmd:cluster({help varlist})}} specifies the variables identifying resampling clusters.  If cluster() is specified, the sample drawn when forming the resampled null distributions is a bootstrap sample of clusters.
+This option does not cluster standard errors in each regression.  If desired, this should be additionally specified using vce(cluster clustvar).
+{p_end}
+{...}
+{synopt :{cmd:verbose}}Request additional output indicating degree of advance of procedure.
 {p_end}
 {...}
 {synopt :{opt other options}}Any additional options which correspond to the baseline regression model.  All options permitted by the indicated method are allowed.
@@ -45,22 +55,37 @@ See {help regress} for a full list of estimation commands in Stata.
 {title:Description}
 
 {p 6 6 2}
-{hi:rwolf} calculates Romano and Wolf's (2005a,b) stepdown adjusted p-values robust to multiple hypothesis testing.
-This program follows the algorithm described in Romano and Wolf (2016), and provides a p-value corresponding to each
-of a series of J independent variables when testing multiple hypotheses against a single dependent
-(or treatment) variable.  The {hi:rwolf} algorithm constructs a null distribution for each of the J hypothesis tests
-based on Studentized bootstrap replications of a subset of the tested variables.  Full details of the procedure are
-described in Romano and Wolf (2016).
+{hi:rwolf} calculates Romano and Wolf's (2005a,b) stepdown adjusted p-values robust to
+multiple hypothesis testing. This program follows the algorithm described in Romano and
+Wolf (2016), and provides a p-value corresponding to each of a series of J dependent
+variables when testing multiple hypotheses against a single independent (or treatment)
+variable.  The {hi:rwolf} algorithm constructs a null distribution for each of the J
+hypothesis tests based on Studentized bootstrap replications of a subset of the tested
+variables.  Full details of the procedure are described in Romano and Wolf (2016).
 
 {p 6 6 2}
-{hi:rwolf} requires multiple independent variables to be tested, a single dependent variable, and (optionally) a series
-of control variables which should be included in each test.  {hi:rwolf} works with any
-{help regress:estimation-based regression command} allowed in Stata, which should be indicated using the {cmd:method()}
-option. If not specified, {help regress} is assumed.  Optionally, regression {help weight}s, {help if} or {help in} can
-be specified.  By default, 100 {help bootstrap} replications are run for each of the J multiple hypotheses.
-Where possible, a larger number of replications should be preferred given that p-values are computed by comparing estimates
-to a bootstrap null distribution constructed from these replications.  The number of replications is set using the
-{cmd:reps({help bootstrap:#})} option, and to replicate results, the {cmd:seed({help seed:#})} should be set.
+{hi:rwolf} requires multiple dependent variables to be tested, a single independent
+variable, and (optionally) a series of control variables which should be included in
+each test.  {hi:rwolf} works with any {help regress:estimation-based regression command}
+allowed in Stata, which should be indicated using the {cmd:method()} option. If not
+specified, {help regress} is assumed.  Optionally, regression {help weight}s, {help if}
+or {help in} can be specified.  By default, 100 {help bootstrap} replications are run
+for each of the J multiple hypotheses.  Where possible, a larger number of replications
+should be preferred given that p-values are computed by comparing estimates to a
+bootstrap null distribution constructed from these replications.  The number of
+replications is set using the {cmd:reps({help bootstrap:#})} option, and to replicate
+results, the {cmd:seed({help seed:#})} should be set.
+
+{p 6 6 2}
+By default, the re-sampled null distributions are formed using a simple bootstrap
+procedure.  However, more complex stratified and/or clustered resampling procedures
+can be specified using the {cmd:strata()} and {cmd:cluster()} options.  The
+{cmd:cluster()} option refers only to the {help bsample:resampling} procedure, and
+not to the standard errors estimated in each regression model.  If the standard
+variance estimator is not desired for regression models, this should be indicated
+using the same {help regress:vce()} specification as in the original regression
+models, for example {cmd:vce(cluster clustvar)}.
+
 
 {p 6 6 2}
 The command returns the Romano Wolf p-value corresponding to each variable, and for reference, the original uncorrected
@@ -88,7 +113,7 @@ variable is returned as a scalar in e(rw_varname).
 
 {pstd}Setup{p_end}
 {phang2}{cmd:. webuse nlswork}{p_end}
-{phang2}{cmd:. rwolf wks_ue ln_wage hours tenure, indepvar(nev_mar) controls(i.year age) method(xtreg) seed(27678) fe}{p_end}
+{phang2}{cmd:. rwolf wks_ue ln_wage hours tenure, indepvar(nev_mar) controls(i.year age) method(xtreg) seed(27678) fe verbose}{p_end}
 
     {hline}
 
