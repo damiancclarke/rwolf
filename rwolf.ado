@@ -1,5 +1,5 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 2.0.0 october 16, 2017 @ 21:12:06
+*! Version 2.1.0 december 15, 2017 @ 08:28:12
 *! Author: Damian Clarke
 *! Department of Economics
 *! Universidad de Santiago de Chile
@@ -9,7 +9,8 @@
 version highlights:
 1.0.0 [01/12/2016]: Romano Wolf Procedure exporting p-values
 1.1.0:[23/07/2017]: Experimental weighting procedure within bootstrap to allow weights
-2.0.0: bsample exclusively.  Add cluster and strata for bsample
+2.0.0:[16/10/2017]: bsample exclusively.  Add cluster and strata for bsample
+2.1.0: Adding ivregress as permitted method.
 */
 
 
@@ -27,12 +28,28 @@ indepvar(varlist max=1)
  Verbose
  strata(varlist)
  cluster(varlist)
+ iv(varlist)
  *
  ]
 ;
 #delimit cr
 cap set seed `seed'
 if `"`method'"'=="" local method regress
+if `"`method'"'=="ivregress" {
+    local ivr1 "("
+    local ivr2 "=`iv')"
+    local method ivregress 2sls
+    if length(`"`iv'"')==0 {
+        dis as error "Instrumental variable(s) must be included when specifying ivregress"
+        dis as error "Specify the IVs using iv(varlist)"
+        exit 200
+    }
+}
+else {
+    local ivr1
+    local ivr2
+}
+
 local bopts
 if length(`"`strata'"')!=0  local bopts `bopts' strata(`strata')
 if length(`"`cluster'"')!=0 local bopts `bopts' cluster(`cluster')
@@ -53,7 +70,7 @@ file open `nullvals' using "`nullfile'", write all
 
 foreach var of varlist `varlist' {
     local ++j
-    cap qui `method' `var' `indepvar' `controls' `if' `in' `wt', `options'
+    cap qui `method' `var' `ivr1'`indepvar'`ivr2' `controls' `if' `in' `wt', `options'
     if _rc!=0 {
         dis as error "Your original `method' does not work."
         dis as error "Please test the `method' and try again."
@@ -72,13 +89,12 @@ dis "Running `reps' bootstrap replications for each variable.  This may take som
 forvalues i=1/`reps' {
     if length(`"`verbose'"')!=0 dis "Bootstrap sample `i'."
     local j=0
-    local memoize
     preserve
     bsample `if' `in', `bopts'
     
     foreach var of varlist `varlist' {
         local ++j
-        qui `method' `var' `indepvar' `controls' `if' `in' `wt', `options'
+        qui `method' `var' `ivr1'`indepvar'`ivr2' `controls' `if' `in' `wt', `options'
         if `j'==1 file write `nullvals' _n "`= _b[`indepvar']';`= _se[`indepvar']'"
         else file write `nullvals' ";`= _b[`indepvar']';`= _se[`indepvar']'"
     }

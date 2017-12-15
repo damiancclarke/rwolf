@@ -21,7 +21,7 @@ help for {hi:rwolf}
 {synopt :{cmd:indepvar(}{it:varname}{cmd:)}}Indicates the one independent (treatment) variable which is included in multiple hypothesis tests.
 {p_end}
 {...}
-{synopt :{cmd:method({help regress} | {help logit} | {help probit} |...)}}Indicates to Stata how each of the multiple hypothesis tests are performed (ie the baseline models).  Any estimation command permitted by Stata can be included.
+{synopt :{cmd:method({help regress} | {help logit} | {help probit} | {help ivregress} |...)}}Indicates to Stata how each of the multiple hypothesis tests are performed (ie the baseline models).  Any estimation command permitted by Stata can be included.
 See {help regress} for a full list of estimation commands in Stata.
     If not specified, {help regress} is assumed.
 {p_end}
@@ -40,6 +40,9 @@ See {help regress} for a full list of estimation commands in Stata.
 {...}
 {synopt :{cmd:cluster({help varlist})}} specifies the variables identifying resampling clusters.  If cluster() is specified, the sample drawn when forming the resampled null distributions is a bootstrap sample of clusters.
 This option does not cluster standard errors in each regression.  If desired, this should be additionally specified using vce(cluster clustvar).
+{p_end}
+{...}
+{synopt :{cmd:iv({help varlist})}} only necessary when method(ivregress) is specified.  The instrumental variables for the treatment variable of interest should be specified in iv().
 {p_end}
 {...}
 {synopt :{cmd:verbose}}Request additional output indicating degree of advance of procedure.
@@ -68,7 +71,10 @@ variables.  Full details of the procedure are described in Romano and Wolf (2016
 variable, and (optionally) a series of control variables which should be included in
 each test.  {hi:rwolf} works with any {help regress:estimation-based regression command}
 allowed in Stata, which should be indicated using the {cmd:method()} option. If not
-specified, {help regress} is assumed.  Optionally, regression {help weight}s, {help if}
+specified, {help regress} is assumed.  In the case that {help ivregress} is specified,
+it is assumed that the independent variable is the endogenous variable, and the
+instrumental variable(s) should be indicated in the {cmd:iv()} option. Optionally,
+regression {help weight}s, {help if}
 or {help in} can be specified.  By default, 100 {help bootstrap} replications are run
 for each of the J multiple hypotheses.  Where possible, a larger number of replications
 should be preferred given that p-values are computed by comparing estimates to a
