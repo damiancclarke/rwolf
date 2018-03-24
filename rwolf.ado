@@ -35,6 +35,10 @@ indepvar(varlist max=1)
 #delimit cr
 cap set seed `seed'
 if `"`method'"'=="" local method regress
+if `"`method'"'=="ivreg2"|`"`method'"'=="ivreg" {
+    dis as error "To estimate IV regression models, specify method(ivregress)"
+    exit 200
+}
 if `"`method'"'=="ivregress" {
     local ivr1 "("
     local ivr2 "=`iv')"
@@ -143,6 +147,7 @@ while length("`cand'")!=0 {
     local prm`maxv's= `pval'
     if length(`"`prmsm1'"')!=0 local prm`maxv's=max(`prm`maxv's',`prmsm1')
     local p`maxv'   = string(ttail(`n`maxv'',`maxt')*2,"%6.4f")
+    if `"`method'"'=="ivregress 2sls" local p`maxv'   = string((1-normal(abs(`maxt')))*2,"%6.4f")
     local prm`maxv' = string(`prm`maxv's',"%6.4f")
     local prmsm1 = `prm`maxv's'
     
