@@ -1,5 +1,5 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 2.1.0 december 15, 2017 @ 08:28:12
+*! Version 2.2.0 may 29, 2018 @ 23:31:44
 *! Author: Damian Clarke
 *! Department of Economics
 *! Universidad de Santiago de Chile
@@ -11,6 +11,7 @@ version highlights:
 1.1.0:[23/07/2017]: Experimental weighting procedure within bootstrap to allow weights
 2.0.0:[16/10/2017]: bsample exclusively.  Add cluster and strata for bsample
 2.1.0: Adding ivregress as permitted method.
+2.2.0: Correcting estimate of standard error in studentized t-value
 */
 
 
@@ -83,6 +84,7 @@ foreach var of varlist `varlist' {
     local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
     local n`j' = e(N)-e(rank)
     if `"`method'"'=="areg" local n`j' = e(df_r)
+    if    e(vce)=="cluster" local n`j' = e(N_clust)-e(rank)
     local cand `cand' `j'
     
     file write `nullvals' "b`j'; se`j';"
@@ -114,7 +116,8 @@ qui insheet using `nullfile', delim(";") names clear
 *-------------------------------------------------------------------------------
 foreach num of numlist 1(1)`j' {
     qui sum b`num'
-    qui replace b`num'=abs((b`num'-r(mean))/se`num')
+    qui replace b`num'=abs((b`num'-r(mean))/r(sd))
+    *qui replace b`num'=abs((b`num'-r(mean))/se`num')
 }
 
 *-------------------------------------------------------------------------------
