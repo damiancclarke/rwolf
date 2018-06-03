@@ -21,31 +21,61 @@ help for {hi:rwolf}
 {synopt :{cmd:indepvar(}{it:varname}{cmd:)}}Indicates the one independent (treatment) variable which is included in multiple hypothesis tests.
 {p_end}
 {...}
-{synopt :{cmd:method({help regress} | {help logit} | {help probit} | {help ivregress} |...)}}Indicates to Stata how each of the multiple hypothesis tests are performed (ie the baseline models).  Any estimation command permitted by Stata can be included.
-See {help regress} for a full list of estimation commands in Stata.
-    If not specified, {help regress} is assumed.
+{synopt :{cmd:method({help regress} | {help logit} | {help probit} | {help ivregress} |...)}}Indicates to Stata how each of the multiple hypothesis tests are performed (ie the baseline models).
+Any estimation command permitted by Stata can be included.
+See {help regress} for a full list of estimation commands in Stata.  
+    If not specified, {help regress} is assumed. If an IV regression is desired, this must
+    be specified with {help ivregress} only, and the iv() option below must be specified.
 {p_end}
 {...}
-{synopt :{cmd:controls({help varlist})}}Lists all other control variables which are to be included in th model to be tested multiple times.  Any variable format accepted by {help varlist} is permitted including time series and factor variables.
+{synopt :{cmd:controls({help varlist})}}Lists all other control variables which are to be included in the model to be tested multiple times.  Any variable format accepted by {help varlist} is permitted including time series and factor variables.
 {p_end}
 {...}
 {synopt :{cmd:seed({help set seed:#})}}Seets seed to indicate the initial value for the pseudo-random number generator.  # can be any integer between 0 and 2^31-1. 
 {p_end}
 {...}
-{synopt :{cmd:reps({help bootstrap:#})}}Perform # bootstrap replication; default is reps(100).  Where possible prefer a larger number of replications for more precise p-values.
+{synopt :{cmd:reps({help bootstrap:#})}}Perform # bootstrap replication; default is {cmd:reps(100)}.  Where possible prefer a larger number of replications for
+more precise p-values.  In IV models, a considerably larger number of replications is
+highly recommended.
 {p_end}
 {...}
-{synopt :{cmd:strata({help varlist})}} specifies the variables identifying strata.  If strata() is specified, bootstrap samples are selected within each stratum when forming the resampled null distributions.
+{synopt :{cmd:strata({help varlist})}} specifies the variables identifying strata.  If {cmd:strata()} is specified, bootstrap samples are selected within each stratum when forming the resampled null distributions.
 {p_end}
 {...}
-{synopt :{cmd:cluster({help varlist})}} specifies the variables identifying resampling clusters.  If cluster() is specified, the sample drawn when forming the resampled null distributions is a bootstrap sample of clusters.
-This option does not cluster standard errors in each regression.  If desired, this should be additionally specified using vce(cluster clustvar).
+{synopt :{cmd:cluster({help varlist})}} specifies the variables identifying resampling clusters.
+If {cmd:cluster()} is specified, the sample drawn when forming the resampled null
+distributions is a bootstrap sample of clusters. This option does not cluster standard errors
+in each regression.  If desired, this should be additionally specified using
+{cmd:vce(cluster clustvar)}.
 {p_end}
 {...}
-{synopt :{cmd:iv({help varlist})}} only necessary when method(ivregress) is specified.  The instrumental variables for the treatment variable of interest should be specified in iv().
+{synopt :{cmd:iv({help varlist})}} only necessary when {cmd:method(ivregress)} is specified.
+The instrumental variables for the treatment variable of interest should be specified in {cmd:iv()}.
+At least as many instruments as endogenous variables must be included.
 {p_end}
 {...}
-{synopt :{cmd:verbose}}Request additional output indicating degree of advance of procedure.
+{synopt :{cmd:otherendog({help varlist})}} If more than one endogenous variable is required in
+{help ivregress} models, additional endogenous variables can be included using this option.
+By default, when {help ivregress} is specified it is assumed that the variable specified in
+{cmd:indepvar(varname)} is an endogenous variable which must be instrumented.  If this is the
+case, the variable should not be entered again in {cmd:otherendog({help varlist})}.
+{p_end}
+{...}
+{synopt :{cmd:indepexog}}If {help ivregress} is specified, but {cmd:indepvar(varname)} is an
+exogenous variable, {cmd:indepexog} should be indicated.  In this case all endogenous
+variables must be specified in {cmd:otherendog({help varlist})} and all instruments
+must be specified in {cmd:iv({help varlist})}.
+{p_end}
+{...}
+{synopt :{cmd:verbose}}Request additional output indicating degree of advance of procedure.  Initial
+models are also displayed.
+{p_end}
+{...}
+{synopt :{cmd:bl({help string})}}Allows for the inclusion of baseline measures of the dependent
+variable as controls in each model.  If desired, these variables should be created with some suffix, and
+the suffix should be included in the {cmd:bl()} option.  For example, if outcome variables are
+called y1, y2 and y3, variables y1_bl, y2_bl and y3_bl should be created with baseline values,
+and {cmd:bl(}_bl{cmd:)} should be specified.
 {p_end}
 {...}
 {synopt :{opt other options}}Any additional options which correspond to the baseline regression model.  All options permitted by the indicated method are allowed.
@@ -60,11 +90,12 @@ This option does not cluster standard errors in each regression.  If desired, th
 {p 6 6 2}
 {hi:rwolf} calculates Romano and Wolf's (2005a,b) stepdown adjusted p-values robust to
 multiple hypothesis testing. This program follows the algorithm described in Romano and
-Wolf (2016), and provides a p-value corresponding to each of a series of J dependent
-variables when testing multiple hypotheses against a single independent (or treatment)
-variable.  The {hi:rwolf} algorithm constructs a null distribution for each of the J
-hypothesis tests based on Studentized bootstrap replications of a subset of the tested
-variables.  Full details of the procedure are described in Romano and Wolf (2016).
+Wolf (2016), and provides a p-value corresponding to the significance of a single
+independent (or treatment) variable when included in a series of J regressions with
+different dependent (or outcome) variables.  The {hi:rwolf} algorithm constructs a null
+distribution for each of the J hypothesis tests based on Studentized bootstrap replications
+of a subset of the tested variables.  Full details of the procedure are described in
+Romano and Wolf (2016).
 
 {p 6 6 2}
 {hi:rwolf} requires multiple dependent variables to be tested, a single independent
@@ -73,12 +104,14 @@ each test.  {hi:rwolf} works with any {help regress:estimation-based regression 
 allowed in Stata, which should be indicated using the {cmd:method()} option. If not
 specified, {help regress} is assumed.  In the case that {help ivregress} is specified,
 it is assumed that the independent variable is the endogenous variable, and the
-instrumental variable(s) should be indicated in the {cmd:iv()} option. Optionally,
-regression {help weight}s, {help if}
+instrumental variable(s) should be indicated in the {cmd:iv()} option. If this is not
+the case (ie if the treatment variable is an exogenous variable in the IV model), this
+should be indicated with the {cmd:indepexog} option. Optionally, regression {help weight}s,
+{help if}
 or {help in} can be specified.  By default, 100 {help bootstrap} replications are run
 for each of the J multiple hypotheses.  Where possible, a larger number of replications
 should be preferred given that p-values are computed by comparing estimates to a
-bootstrap null distribution constructed from these replications.  The number of
+bootstrapped null distribution constructed from these replications.  The number of
 replications is set using the {cmd:reps({help bootstrap:#})} option, and to replicate
 results, the {cmd:seed({help seed:#})} should be set.
 
@@ -91,7 +124,6 @@ not to the standard errors estimated in each regression model.  If the standard
 variance estimator is not desired for regression models, this should be indicated
 using the same {help regress:vce()} specification as in the original regression
 models, for example {cmd:vce(cluster clustvar)}.
-
 
 {p 6 6 2}
 The command returns the Romano Wolf p-value corresponding to each variable, and for reference, the original uncorrected
@@ -115,11 +147,17 @@ variable is returned as a scalar in e(rw_varname).
 
     {hline}
 
-{pstd}Run multiple hypothesis tests using the National Longitudinal (panel) Survey.{p_end}
+{pstd}Run an instrumental variables model where the treatment variable (weight) is endogenous and a single instrument (length) is available {break}
+
+{phang2}{cmd:. rwolf headroom turn price rep78, indepvar(weight) controls(trunk)  method(ivregress) iv(length)}{p_end}
+
+{hline}
+
+{pstd}Run multiple hypothesis tests using the National Longitudinal (panel) Survey with clustered re-sampling.{p_end}
 
 {pstd}Setup{p_end}
 {phang2}{cmd:. webuse nlswork}{p_end}
-{phang2}{cmd:. rwolf wks_ue ln_wage hours tenure, indepvar(nev_mar) controls(i.year age) method(xtreg) seed(27678) fe verbose}{p_end}
+{phang2}{cmd:. rwolf wks_ue ln_wage hours tenure, indepvar(nev_mar) controls(i.year age) method(xtreg) seed(51) fe cluster(ind_code) verbose}{p_end}
 
     {hline}
 
@@ -134,7 +172,16 @@ variable is returned as a scalar in e(rw_varname).
 {synoptset 10 tabbed}{...}
 {p2col 5 20 24 2: Scalars}{p_end}
 {synopt:{cmd:e(rw_var1)}}The Romano Wolf p-value associated with variable 1 (var1 will be changed for variable name) {p_end}
+{synopt:{cmd:...}} {p_end}
+
 {synopt:{cmd:e(rw_varJ)}}The Romano Wolf p-value associated with variable J.  Each of the independent variables will be returned in this way. {p_end}
+
+
+{marker acknowledgements}{...}
+{title:Acknowledgements}
+
+{p 6 6 2}
+I am grateful to Pinar Keskin and Francisco Oteiza for feedback related to prior versions of this code and useful suggestions which have been implemented in this version of the ado.
 
 	
 
@@ -166,3 +213,4 @@ Statistics and Probability Letters 113: 38-40.
 {pstd}
 Damian Clarke, Department of Economics, Universidad de Santiago de Chile. {browse "mailto:damian.clarke@usach.cl":damian.clarke@usach.cl}
 {p_end}
+

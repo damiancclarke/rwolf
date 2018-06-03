@@ -1,5 +1,5 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 2.2.0 may 29, 2018 @ 23:31:44
+*! Version 2.2.0 june 2, 2018 @ 21:17:21
 *! Author: Damian Clarke
 *! Department of Economics
 *! Universidad de Santiago de Chile
@@ -10,8 +10,8 @@ version highlights:
 1.0.0 [01/12/2016]: Romano Wolf Procedure exporting p-values
 1.1.0:[23/07/2017]: Experimental weighting procedure within bootstrap to allow weights
 2.0.0:[16/10/2017]: bsample exclusively.  Add cluster and strata for bsample
-2.1.0: Adding ivregress as permitted method.
-2.2.0: Correcting estimate of standard error in studentized t-value
+2.1.0:[15/12/2017]: Adding ivregress as permitted method.
+2.2.0:[29/05/2018]: Correcting estimate of standard error in studentized t-value
 */
 
 
@@ -28,8 +28,11 @@ indepvar(varlist max=1)
  reps(integer 100)
  Verbose
  strata(varlist)
+ otherendog(varlist)
  cluster(varlist)
  iv(varlist)
+ indepexog
+ bl(name)
  *
  ]
 ;
@@ -40,6 +43,10 @@ if `"`method'"'=="ivreg2"|`"`method'"'=="ivreg" {
     dis as error "To estimate IV regression models, specify method(ivregress)"
     exit 200
 }
+if `"`method'"'!="ivregress"&length(`"`indepexog'"')>0 {
+    dis as error "indepexog argument can only be specified with method(ivregress)"
+    exit 200
+}
 if `"`method'"'=="ivregress" {
     local ivr1 "("
     local ivr2 "=`iv')"
@@ -48,18 +55,19 @@ if `"`method'"'=="ivregress" {
         dis as error "Instrumental variable(s) must be included when specifying ivregress"
         dis as error "Specify the IVs using iv(varlist)"
         exit 200
-    }
+    }    
 }
 else {
     local ivr1
     local ivr2
+    local otherendog
 }
 
 local bopts
 if length(`"`strata'"')!=0  local bopts `bopts' strata(`strata')
 if length(`"`cluster'"')!=0 local bopts `bopts' cluster(`cluster')
 
-
+if length(`"`verbose'"')==0 local q qui
 
 *-------------------------------------------------------------------------------
 *--- Run bootstrap reps to create null Studentized distribution
@@ -72,10 +80,17 @@ tempname nullvals
 tempfile nullfile
 file open `nullvals' using "`nullfile'", write all
 
-
+`q' dis "Displaying original (uncorrected) models:"
 foreach var of varlist `varlist' {
     local ++j
-    cap qui `method' `var' `ivr1'`indepvar'`ivr2' `controls' `if' `in' `wt', `options'
+    local Xv `controls'
+    if length(`"`bl'"')!=0 local Xv `controls' `var'`bl' 
+    if length(`"`indepexog'"')==0 {
+        `q' `method' `var' `ivr1'`indepvar' `otherendog'`ivr2' `Xv' `if' `in' `wt', `options'
+    }
+    else {
+        `q' `method' `var' `ivr1'`otherendog'`ivr2' `indepvar' `Xv' `if' `in' `wt', `options'
+    }
     if _rc!=0 {
         dis as error "Your original `method' does not work."
         dis as error "Please test the `method' and try again."
@@ -84,7 +99,6 @@ foreach var of varlist `varlist' {
     local t`j' = abs(_b[`indepvar']/_se[`indepvar'])
     local n`j' = e(N)-e(rank)
     if `"`method'"'=="areg" local n`j' = e(df_r)
-    if    e(vce)=="cluster" local n`j' = e(N_clust)-e(rank)
     local cand `cand' `j'
     
     file write `nullvals' "b`j'; se`j';"
@@ -100,7 +114,14 @@ forvalues i=1/`reps' {
     
     foreach var of varlist `varlist' {
         local ++j
-        qui `method' `var' `ivr1'`indepvar'`ivr2' `controls' `if' `in' `wt', `options'
+        local Xv `controls'
+        if length(`"`bl'"')!=0 local Xv `controls' `var'`bl' 
+        if length(`"`indepexog'"')==0 {
+            qui `method' `var' `ivr1'`indepvar'  `otherendog'`ivr2' `Xv' `if' `in' `wt', `options'
+        }
+        else {
+            qui `method' `var' `ivr1'`otherendog'`ivr2' `indepvar' `Xv' `if' `in' `wt', `options'
+        }
         if `j'==1 file write `nullvals' _n "`= _b[`indepvar']';`= _se[`indepvar']'"
         else file write `nullvals' ";`= _b[`indepvar']';`= _se[`indepvar']'"
     }
@@ -117,7 +138,6 @@ qui insheet using `nullfile', delim(";") names clear
 foreach num of numlist 1(1)`j' {
     qui sum b`num'
     qui replace b`num'=abs((b`num'-r(mean))/r(sd))
-    *qui replace b`num'=abs((b`num'-r(mean))/se`num')
 }
 
 *-------------------------------------------------------------------------------
