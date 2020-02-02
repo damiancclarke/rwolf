@@ -470,7 +470,7 @@ if `nivars' > 1 {
     dis _newline
     foreach ivar of varlist `indepvar' {
         local j=0
-        dis "Dependent variable:  `ivar'"
+        dis "Independent variable:  `ivar'"
         dis "Outcome variables:  `vardisplay'"
         dis "Number of resamples: `reps'"
         dis _newline
@@ -501,7 +501,7 @@ else {
     dis _newline
     dis "Romano-Wolf step-down adjusted p-values"
     dis _newline
-    if length(`"`nobootstraps'"')==0 dis "Dependent variable:  `indepvar'"
+    if length(`"`nobootstraps'"')==0 dis "Independent variable:  `indepvar'"
     dis "Outcome variables:  `vardisplay'"
     dis "Number of resamples: `reps'"
     dis _newline
