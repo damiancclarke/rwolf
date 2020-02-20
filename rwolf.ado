@@ -1,5 +1,5 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 3.0.1 february 1, 2020 @ 22:58:19
+*! Version 3.0.2 february 20, 2020 @ 10:01:11
 *! Author: Damian Clarke
 *! Department of Economics
 *! Universidad de Santiago de Chile
@@ -13,7 +13,8 @@ version highlights:
 2.1.0:[15/12/2017]: Adding ivregress as permitted method.
 2.2.0:[29/05/2018]: Correcting estimate of standard error in studentized t-value
 3.0.0:[18/12/2019]: All additional options indicated in Clarke, Romano & Wolf paper
-3.0.1:[18/12/2019]: Bug fix for variable names containing upper case letters
+3.0.1:[01/02/2020]: Bug fix for variable names containing upper case letters
+3.0.2:[20/02/2020]: Bug fix for nobootstrap: now working with mult ind var version
 */
 
 cap program drop rwolf
@@ -241,7 +242,8 @@ if length(`"`nobootstraps'"')==0 {
 }
 else {
     local indepvar nobs
-
+    local ivar     nobs
+    
     preserve
     local cand_`indepvar'
     local j=0
