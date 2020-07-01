@@ -1,9 +1,9 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 3.0.2 february 20, 2020 @ 10:01:11
+*! Version 3.1.0 july 01, 2020 @ 12:46:02
 *! Author: Damian Clarke
 *! Department of Economics
-*! Universidad de Santiago de Chile
-*! damian.clarke@usach.cl
+*! University of Chile
+*! dclarke@fen.uchile.cl
 
 /*
 version highlights:
@@ -14,7 +14,7 @@ version highlights:
 2.2.0:[29/05/2018]: Correcting estimate of standard error in studentized t-value
 3.0.0:[18/12/2019]: All additional options indicated in Clarke, Romano & Wolf paper
 3.0.1:[01/02/2020]: Bug fix for variable names containing upper case letters
-3.0.2:[20/02/2020]: Bug fix for nobootstrap: now working with mult ind var version
+3.1.0:[01/07/2020]: Bug fix for clustering with block bootstrap: adding clusterid()
 */
 
 cap program drop rwolf
@@ -47,6 +47,7 @@ syntax varlist(min=1 fv ts numeric) [if] [in] [pweight fweight aweight iweight],
  nodots
  holm
  nulls(numlist)
+ vce(string)
  *
  ]
 ;
@@ -113,9 +114,12 @@ if length(`"`nulls'"')!=0 {
 
 local bopts
 if length(`"`strata'"')!=0  local bopts `bopts' strata(`strata')
-if length(`"`cluster'"')!=0 local bopts `bopts' cluster(`cluster')
+if length(`"`cluster'"')!=0 {
+    local bopts `bopts' cluster(`cluster') idcluster(`cluster'_bsnew)
+    local bootoptions   `options' cluster(`cluster'_bsnew)
+}
 if length(`"`verbose'"')==0 local q qui
-
+if length(`"`vce'"')!=0 local options `options' vce(`vce')
 
 *-------------------------------------------------------------------------------
 *--- Run bootstrap reps to create null Studentized distribution
@@ -217,13 +221,13 @@ if length(`"`nobootstraps'"')==0 {
             if length(`"`indepexog'"')==0 {
                 #delimit ;
                 qui `method' `var' `ivr1'`indepvar'  `otherendog'`ivr2' `Xv'
-                             `if' `in' `wt', `options';
+                             `if' `in' `wt', `bootoptions';
                 #delimit cr
             }
             else {
                 #delimit ;
                 qui `method' `var' `ivr1'`otherendog'`ivr2' `indepvar' `Xv'
-                             `if' `in' `wt', `options';
+                             `if' `in' `wt', `bootoptions';
                 #delimit cr
             }
             local k=1
@@ -464,6 +468,8 @@ foreach var of varlist `varlist' {
     }
     else local vardisplay "`vardisplay' `var'"
 }
+local crit = (100-c(level))/100
+local lev  = c(level)
 
 if `nivars' > 1 {
     dis _newline
@@ -471,32 +477,84 @@ if `nivars' > 1 {
     dis "Romano-Wolf step-down adjusted p-values"
     dis _newline
     foreach ivar of varlist `indepvar' {
+        local sigvars
+        local modelsig = 0
+        local rwsig    = 0
         local j=0
         dis "Independent variable:  `ivar'"
         dis "Outcome variables:  `vardisplay'"
         dis "Number of resamples: `reps'"
         dis _newline
         dis "{hline 78}"
-        dis "Outcome Variable    | Model p-value    Resample p-value    Romano-Wolf p-value"
-        dis "{hline 20}+{hline 57}"
-        foreach var of varlist `varlist' {
-            local ++j
-            display as text %19s abbrev("`var'",19) " {c |}     "       /*
+        if length(`"`holm'"')==0 {
+            dis "   Outcome Variable | Model p-value    Resample p-value    Romano-Wolf p-value"
+            dis "{hline 20}+{hline 57}"
+            foreach var of varlist `varlist' {
+                local ++j
+                display as text %19s abbrev("`var'",19) " {c |}     "   /*
                 */  as result %6.4f `pv`var's_`ivar'' "             "   /*
                 */  as result %6.4f `pbs`j's_`ivar'' "              "   /*
                 */  as result %6.4f `prm`j's_`ivar''
-            ereturn scalar rw_`var'_`ivar'=`prm`j's_`ivar''
-            matrix pvalues_`ivar'[`j',1]=`pv`var's_`ivar''
-            matrix pvalues_`ivar'[`j',2]=`pbs`j's_`ivar''
-            matrix pvalues_`ivar'[`j',3]=`prm`j's_`ivar''
-            if length(`"`holm'"')!=0 matrix pvalues_`ivar'[`j',4]=`prh`j's_`ivar''
+                ereturn scalar rw_`var'_`ivar'=`prm`j's_`ivar''
+                matrix pvalues_`ivar'[`j',1]=`pv`var's_`ivar''
+                matrix pvalues_`ivar'[`j',2]=`pbs`j's_`ivar''
+                matrix pvalues_`ivar'[`j',3]=`prm`j's_`ivar''
+
+                if length(`"`nobootstraps'"')==0 {
+                    if `pv`var's_`ivar''<`crit' local ++modelsig
+                    if `prm`j's_`ivar''<`crit' {
+                        local ++rwsig
+                        local sigvars `sigvars' `var'
+                    }
+                }
+            }
+        }
+        else {
+            dis "                    |     Model       Resample     Romano-Wolf        Holm"
+            dis "   Outcome Variable |    p-value      p-value        p-value         p-value"
+            dis "{hline 20}+{hline 57}"
+            foreach var of varlist `varlist' {
+                local ++j
+                display as text %19s abbrev("`var'",19) " {c |}    " /*
+                */  as result %6.4f `pv`var's_`ivar'' "        "     /*
+                */  as result %6.4f `pbs`j's_`ivar'' "         "     /*
+                */  as result %6.4f `prm`j's_`ivar'' "         "     /*
+                */  as result %6.4f `prh`j's_`ivar''
+                ereturn scalar rw_`var'_`ivar'=`prm`j's_`ivar''
+                matrix pvalues_`ivar'[`j',1]=`pv`var's_`ivar''
+                matrix pvalues_`ivar'[`j',2]=`pbs`j's_`ivar''
+                matrix pvalues_`ivar'[`j',3]=`prm`j's_`ivar''
+                matrix pvalues_`ivar'[`j',4]=`prh`j's_`ivar''
+
+                if length(`"`nobootstraps'"')==0 {
+                    if `pv`var's_`ivar''<`crit' local ++modelsig
+                    if `prm`j's_`ivar''<`crit' {
+                        local ++rwsig
+                        local sigvars `sigvars' `var'
+                    }
+                }
+            }
         }
         dis "{hline 78}"
+        if length(`"`verbose'"')!=0&length(`"`nobootstraps'"')==0 {
+            local hyp1 hypotheses
+            local hyp2 hypotheses
+            if `modelsig'==1 local hyp1 hypothesis
+            if `rwsig'==1    local hyp2 hypothesis
+            dis "Uncorrected (model) p-values result in `modelsig' rejected null `hyp1' (`lev'% level)."
+            dis "Romano-Wolf adjusted p-values result in `rwsig' rejected null `hyp2' (`lev'% level)."
+            if `rwsig'==1 dis in smcl "{p 0 1 1 78} The variable for which the null is rejected is: `sigvars'."
+            if `rwsig'>1 dis in smcl "{p 0 1 1 78} The variables for which the null is rejected are: `sigvars'." 
+        }
         dis _newline
         ereturn matrix RW_`ivar'=pvalues_`ivar'
     }
 }
 else {
+    local sigvars
+    local modelsig = 0
+    local rwsig    = 0
+
     local ivar `indepvar'
     local j=0
     dis _newline
@@ -508,21 +566,66 @@ else {
     dis "Number of resamples: `reps'"
     dis _newline
     dis "{hline 78}"
-    dis "Outcome Variable    | Model p-value    Resample p-value    Romano-Wolf p-value"
-    dis "{hline 20}+{hline 57}"
-    foreach var of varlist `varlist' {
-        local ++j
-        display as text %19s abbrev("`var'",19) " {c |}    "        /*
-            */  as result %6.4f `pv`var's_`ivar'' "             "   /*
-            */  as result %6.4f `pbs`j's_`ivar'' "              "   /*
-            */  as result %6.4f `prm`j's_`ivar''
-        ereturn scalar rw_`var'=`prm`j's_`ivar''
-        matrix pvalues[`j',1]=`pv`var's_`ivar''
-        matrix pvalues[`j',2]=`pbs`j's_`ivar''
-        matrix pvalues[`j',3]=`prm`j's_`ivar''
-        if length(`"`holm'"')!=0 matrix pvalues[`j',4]=`prh`j's_`ivar''
+    if length(`"`holm'"')==0 {
+        dis "   Outcome Variable | Model p-value    Resample p-value    Romano-Wolf p-value"
+        dis "{hline 20}+{hline 57}"
+        foreach var of varlist `varlist' {
+            local ++j
+            display as text %19s abbrev("`var'",19) " {c |}    "        /*
+                */  as result %6.4f `pv`var's_`ivar'' "             "   /*
+                */  as result %6.4f `pbs`j's_`ivar'' "              "   /*
+                */  as result %6.4f `prm`j's_`ivar''
+            ereturn scalar rw_`var'=`prm`j's_`ivar''
+            matrix pvalues[`j',1]=`pv`var's_`ivar''
+            matrix pvalues[`j',2]=`pbs`j's_`ivar''
+            matrix pvalues[`j',3]=`prm`j's_`ivar''
+
+            if length(`"`nobootstraps'"')==0 {
+                if `pv`var's_`ivar''<`crit' local ++modelsig
+                if `prm`j's_`ivar''<`crit' {
+                    local ++rwsig
+                    local sigvars `sigvars' `var'
+                }
+            }
+        }
+    }
+    else {
+        dis "                    |     Model       Resample     Romano-Wolf        Holm"
+        dis "   Outcome Variable |    p-value      p-value        p-value         p-value"
+        dis "{hline 20}+{hline 57}"
+        foreach var of varlist `varlist' {
+            local ++j
+            display as text %19s abbrev("`var'",19) " {c |}    "        /*
+                */  as result %6.4f `pv`var's_`ivar'' "        "   /*
+                */  as result %6.4f `pbs`j's_`ivar'' "         "   /*
+                */  as result %6.4f `prm`j's_`ivar'' "         "   /*
+                */  as result %6.4f `prh`j's_`ivar''
+            ereturn scalar rw_`var'=`prm`j's_`ivar''
+            matrix pvalues[`j',1]=`pv`var's_`ivar''
+            matrix pvalues[`j',2]=`pbs`j's_`ivar''
+            matrix pvalues[`j',3]=`prm`j's_`ivar''
+            matrix pvalues[`j',4]=`prh`j's_`ivar''
+
+            if length(`"`nobootstraps'"')==0 {
+                if `pv`var's_`ivar''<`crit' local ++modelsig
+                if `prm`j's_`ivar''<`crit' {
+                    local ++rwsig
+                    local sigvars `sigvars' `var'
+                }
+            }
+        }
     }
     dis "{hline 78}"
+    if length(`"`verbose'"')!=0&length(`"`nobootstraps'"')==0 {
+        local hyp1 hypotheses
+        local hyp2 hypotheses
+        if `modelsig'==1 local hyp1 hypothesis
+        if `rwsig'==1    local hyp2 hypothesis
+        dis "Uncorrected (model) p-values result in `modelsig' rejected null `hyp1' (`lev'% level)."
+        dis "Romano-Wolf adjusted p-values result in `rwsig' rejected null `hyp2' (`lev'% level)."
+        if `rwsig'==1 dis in smcl "{p 0 1 1 78} The variable for which the null is rejected is: `sigvars'."
+        if `rwsig'>1 dis in smcl "{p 0 1 1 78} The variables for which the null is rejected are: `sigvars'." 
+    }
     ereturn matrix RW=pvalues
 }
 

@@ -55,8 +55,11 @@ more precise p-values.  In IV models, a considerably larger number of replicatio
 highly recommended.
 {p_end}
 {...}
-{synopt :{cmd:verbose}}Request additional output indicating degree of advance of procedure.  Initial
-models are also displayed.
+{synopt :{cmd:verbose}} Requests additional output, including display of the initial
+(uncorrected) models estimated. This will also result in the generation of a summary output
+message indicating the number of hypotheses rejected in uncorrected models and
+when implementing the Romano-Wolf correction, as well as any dependent variables
+for which the null is rejected in the Romano-Wolf procedure.
 {p_end}
 {...}
 {synopt :{cmd:strata({help varlist})}} specifies the variables identifying strata.  If {cmd:strata()} is specified, bootstrap samples are selected within each stratum when forming the resampled null distributions.
@@ -65,8 +68,9 @@ models are also displayed.
 {synopt :{cmd:cluster({help varlist})}} specifies the variables identifying resampling clusters.
 If {cmd:cluster()} is specified, the sample drawn when forming the resampled null
 distributions is a bootstrap sample of clusters. This option does not cluster standard errors
-in each regression.  If desired, this should be additionally specified using
-{cmd:vce(cluster clustvar)}.
+in each original regression.  If desired, this should be additionally specified using
+{cmd:vce(cluster clustvar)}.  It is suggested that these options be used together to ensure that
+underlying regression models and bootstrap resampling obey the same clustering schemes.
 {p_end}
 {...}
 {synopt :{cmd:onesided({help string})}} Indicates that p-values based on one-sided tests should be calculated.
@@ -109,7 +113,7 @@ adding one to the numerator and denominator.
 {p_end}
 {...}
 {synopt :{cmd:holm}}Along with standard output, additionally provide p-values corresponding to the
-Holm multiple hypothesis correction.
+Holm multiple hypothesis correction. 
 {p_end}
 {...}
 {synopt :{cmd:graph}}Requests that a graph be produced showing the Romano-Wolf null distribution
@@ -229,10 +233,11 @@ By default, the re-sampled null distributions are formed using a simple bootstra
 procedure.  However, more complex stratified and/or clustered resampling procedures
 can be specified using the {cmd:strata()} and {cmd:cluster()} options.  The
 {cmd:cluster()} option refers only to the {help bsample:resampling} procedure, and
-not to the standard errors estimated in each regression model.  If the standard
+not to the standard errors estimated in each original regression model.  If the standard
 variance estimator is not desired for regression models, this should be indicated
 using the same {help regress:vce()} specification as in the original regression
-models, for example {cmd:vce(cluster clustvar)}.
+models, for example {cmd:vce(cluster clustvar)}.  It is suggested that the
+{cmd:cluster()} and {cmd:vce(cluster clustvar)} should be used together.
 
 {p 6 6 2}
 The command returns the Romano Wolf p-value corresponding to each variable, standard
@@ -269,7 +274,7 @@ e(RW) providing the full set of Romano-Wolf corrected p-values.
 
 {pstd}Setup{p_end}
 {phang2}{cmd:. webuse nlswork}{p_end}
-{phang2}{cmd:. rwolf wks_ue ln_wage hours tenure, indepvar(nev_mar) controls(i.year age) method(xtreg) seed(51) fe cluster(ind_code) verbose}{p_end}
+{phang2}{cmd:. rwolf wks_ue ln_wage hours tenure, indepvar(nev_mar) controls(i.year age) method(xtreg) seed(51) fe cluster(ind_code) verbose vce(cluster ind_code)}{p_end}
 
     {hline}
 
@@ -333,13 +338,13 @@ Statistics and Probability Letters 113: 38-40.
 {marker Clarketal2019}{...}
 {phang}
 Clarke, D, Romano J.P. and Wolf M., 2019.
-{it: The Romano-Wolf Multiple Hypothesis Correction in Stata}, Mimeo.
+{it: The Romano-Wolf Multiple Hypothesis Correction in Stata}, Forthcoming, Stata Journal.
 {p_end}
 
 
 {title:Author}
 
 {pstd}
-Damian Clarke, Department of Economics, Universidad de Santiago de Chile. {browse "mailto:damian.clarke@usach.cl":damian.clarke@usach.cl}
+Damian Clarke, Department of Economics, University of Chile. {browse "mailto:dclarke@fen.uchile.cl":dclarke@fen.uchile.cl}
 {p_end}
 
