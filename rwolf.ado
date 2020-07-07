@@ -113,13 +113,31 @@ if length(`"`nulls'"')!=0 {
 }
 
 local bopts
+local bootoptions `options'
 if length(`"`strata'"')!=0  local bopts `bopts' strata(`strata')
 if length(`"`cluster'"')!=0 {
     local bopts `bopts' cluster(`cluster') idcluster(`cluster'_bsnew)
-    local bootoptions   `options' cluster(`cluster'_bsnew)
+    *** WE WILL CLUSTER WITHIN THE BOOTSTRAP AS LONG AS A CLUSTERED MODEL IS USED
+    if length(`"`vce'"')!=0 local bootoptions `options' cluster(`cluster'_bsnew)
+
+    local vcee1 "You have requested a clustered resample but not clustered standard errors."
+    local vcee2 "If you would like to also cluster standard errors, please also specify"
+    local vcee3 "the vce(cluster clustvar) option (where clustvar is your cluster variable)."
+    if length(`"`vce'"')==0 dis as error "`vcee1' `vcee2' `vcee3'"
+
 }
 if length(`"`verbose'"')==0 local q qui
-if length(`"`vce'"')!=0 local options `options' vce(`vce')
+if length(`"`vce'"')!=0 {
+    local options `options' vce(`vce')
+    local vcee1 "You have requested clustered standard errors, but not a clustered resample."
+    local vcee2 "If you would like to also used clustered resampling, please also specify"
+    local vcee3 "the cluster(clustvar) option (where clustvar is your cluster variable)."
+
+    if length(`"`cluster'"')==0 {
+        dis as error "`vcee1' `vcee2' `vcee3'"
+        local bootoptions `options'
+    }
+}
 
 *-------------------------------------------------------------------------------
 *--- Run bootstrap reps to create null Studentized distribution
@@ -207,6 +225,8 @@ if length(`"`nobootstraps'"')==0 {
         dis "----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5"
     }
     forvalues i=1/`reps' {
+        local bmess1 "There has been an issue with a bootstrap replicate"
+        local bmess2 "in bootstrap `i'.  Taking next bootstrap sample..."
         local j=0
         preserve
         bsample `if' `in', `bopts'
@@ -220,14 +240,14 @@ if length(`"`nobootstraps'"')==0 {
             if length(`"`bl'"')!=0 local Xv `controls' `var'`bl' 
             if length(`"`indepexog'"')==0 {
                 #delimit ;
-                qui `method' `var' `ivr1'`indepvar'  `otherendog'`ivr2' `Xv'
-                             `if' `in' `wt', `bootoptions';
+                qui `method' `var' `ivr1'`indepvar'  `otherendog'`ivr2'
+                             `Xv' `if' `in' `wt', `bootoptions';
                 #delimit cr
             }
             else {
                 #delimit ;
-                qui `method' `var' `ivr1'`otherendog'`ivr2' `indepvar' `Xv'
-                             `if' `in' `wt', `bootoptions';
+                qui `method' `var' `ivr1'`otherendog'`ivr2' `indepvar'
+                             `Xv' `if' `in' `wt', `bootoptions';
                 #delimit cr
             }
             local k=1

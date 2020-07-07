@@ -270,11 +270,11 @@ e(RW) providing the full set of Romano-Wolf corrected p-values.
 
 {hline}
 
-{pstd}Run multiple hypothesis tests using the National Longitudinal (panel) Survey with clustered re-sampling.{p_end}
+{pstd}Run multiple hypothesis tests using the National Longitudinal (panel) Survey with an xtreg, fe model.{p_end}
 
 {pstd}Setup{p_end}
 {phang2}{cmd:. webuse nlswork}{p_end}
-{phang2}{cmd:. rwolf wks_ue ln_wage hours tenure, indepvar(nev_mar) controls(i.year age) method(xtreg) seed(51) fe cluster(ind_code) verbose vce(cluster ind_code)}{p_end}
+{phang2}{cmd:. rwolf wks_ue ln_wage hours tenure, indepvar(nev_mar) controls(i.year age) method(xtreg) seed(51) fe verbose}{p_end}
 
     {hline}
 
