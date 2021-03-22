@@ -35,7 +35,7 @@ syntax varlist(min=1 fv ts numeric) [if] [in] [pweight fweight aweight iweight],
  Verbose
  strata(varlist)
  otherendog(varlist)
- cluster(varlist)
+ CLuster(varlist)
  iv(varlist fv ts) 
  indepexog
  bl(name)
