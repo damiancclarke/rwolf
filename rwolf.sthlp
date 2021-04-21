@@ -65,14 +65,24 @@ for which the null is rejected in the Romano-Wolf procedure.
 {synopt :{cmd:strata({help varlist})}} specifies the variables identifying strata.  If {cmd:strata()} is specified, bootstrap samples are selected within each stratum when forming the resampled null distributions.
 {p_end}
 {...}
-{synopt :{cmd:cluster({help varlist})}} specifies the variables identifying resampling clusters.
+{synopt :{opth cl:uster(varlist)}} specifies the variables identifying resampling clusters.
 If {cmd:cluster()} is specified, the sample drawn when forming the resampled null
 distributions is a bootstrap sample of clusters. This option does not cluster standard errors
 in each original regression.  If desired, this should be additionally specified using
 {cmd:vce(cluster clustvar)}.  It is suggested that these options be used together to ensure that
-underlying regression models and bootstrap resampling obey the same clustering schemes.
+underlying regression models and bootstrap resampling obey the same clustering schemes.  If
+{cmd:vce(cluster clustvar)} is indicated, it is assumed that a clustered bootstrap resample is
+desired, and {cmd: cluster()} will cluster on the same {cmd clustvar}.  If this is not desired,
+the {cmd:regcluster()} option should be used, which allows for a cluster variable to be passed
+only to the underlying regressions, or for different cluster variables to be used for the regression,
+and the bootstrap resamples.
 {p_end}
 {...}
+{synopt :{opth regcluster(varname)}} allows for a cluster variable to be passed directly to the
+regressions used in each test.  This option allows for different variables to be used for clustering
+in the underlying regression (via {cmd: regcluster()}) and the bootstrap resample (via {cmd: clustvar()}), or for a variable to be used to cluster the underlying regression, but not cluster the bootstrap
+resample procedure.
+{p_end}
 {synopt :{cmd:onesided({help string})}} Indicates that p-values based on one-sided tests should be calculated.
 Unless specified, p-values based on two-sided tests are provided, corresponding to the null that
 each parameter is equal to 0 (or the values indicated in {cmd:nulls()}). In {cmd:onesided({help string})},
@@ -237,7 +247,12 @@ not to the standard errors estimated in each original regression model.  If the 
 variance estimator is not desired for regression models, this should be indicated
 using the same {help regress:vce()} specification as in the original regression
 models, for example {cmd:vce(cluster clustvar)}.  It is suggested that the
-{cmd:cluster()} and {cmd:vce(cluster clustvar)} should be used together.
+{cmd:cluster()} and {cmd:vce(cluster clustvar)} should be used together. If
+only {cmd:vce(cluster clustvar)} is indicated, it is assumed that bootstrap resamples
+should be conducted over the same {cmd:clustvar}.  If this is not the case, then
+the {cmd:regcluster(clustvar)} option should be used, which controls clustering
+only in the underlying regressions, or allows for clustering over different variables
+in the regressions (using {cmd:clustvar()}) and resamples (using {cmd:cluster()}).
 
 {p 6 6 2}
 The command returns the Romano Wolf p-value corresponding to each variable, standard
