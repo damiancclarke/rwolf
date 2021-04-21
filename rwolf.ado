@@ -1,5 +1,5 @@
 *! rwolf: Romano Wolf stepdown hypothesis testing algorithm
-*! Version 3.1.0 july 01, 2020 @ 12:46:02
+*! Version 3.2.0 april 20, 2021 @ 22:47:41
 *! Author: Damian Clarke
 *! Department of Economics
 *! University of Chile
@@ -15,6 +15,7 @@ version highlights:
 3.0.0:[18/12/2019]: All additional options indicated in Clarke, Romano & Wolf paper
 3.0.1:[01/02/2020]: Bug fix for variable names containing upper case letters
 3.1.0:[01/07/2020]: Bug fix for clustering with block bootstrap: adding clusterid()
+3.2.0:[20/04/2021]: 
 */
 
 cap program drop rwolf
@@ -48,6 +49,7 @@ syntax varlist(min=1 fv ts numeric) [if] [in] [pweight fweight aweight iweight],
  holm
  nulls(numlist)
  vce(string)
+ regcluster(varlist)
  *
  ]
 ;
@@ -118,8 +120,9 @@ if length(`"`strata'"')!=0  local bopts `bopts' strata(`strata')
 if length(`"`cluster'"')!=0 {
     local bopts `bopts' cluster(`cluster') idcluster(`cluster'_bsnew)
     *** WE WILL CLUSTER WITHIN THE BOOTSTRAP AS LONG AS A CLUSTERED MODEL IS USED
-    if length(`"`vce'"')!=0 local bootoptions `options' cluster(`cluster'_bsnew)
-
+    if length(`"`vce'"')!=0&length(`"`regcluster'"')==0 local bootoptions `options' cluster(`cluster'_bsnew)
+    if length(`"`regcluster'"')!=0 local bootoptions `options' cluster(`regcluster')
+    
     local vcee1 "You have requested a clustered resample but not clustered standard errors."
     local vcee2 "If you would like to also cluster standard errors, please also specify"
     local vcee3 "the vce(cluster clustvar) option (where clustvar is your cluster variable)."
@@ -137,6 +140,9 @@ if length(`"`vce'"')!=0 {
         dis as error "`vcee1' `vcee2' `vcee3'"
         local bootoptions `options'
     }
+}
+if length(`"`regcluster'"')!=0 {
+    local options `options' cluster(`regcluster')
 }
 
 *-------------------------------------------------------------------------------
@@ -171,7 +177,7 @@ if length(`"`nobootstraps'"')==0 {
                          `if' `in' `wt', `options';
             #delimit cr
         }
-        if _rc!=0 {
+        if _rc!=0&(`"`method'"'=="reghdfe"&_rc!=111) {
             dis as error "Your original `method' does not work."
             dis as error "Please test the `method' and try again."
             exit _rc
@@ -192,7 +198,8 @@ if length(`"`nobootstraps'"')==0 {
             qui test _b[`ivar'] = `beta0`j'_`ivar''
             local pv`var'_`ivar' = string(r(p), "%6.4f")
             local pv`var's_`ivar'= r(p)
-        
+            `q' dis `pv`var's_`ivar''
+            
             if `"`onesided'"'=="positive" {
                 qui test `ivar'=0
                 local sgn = sign(_b[`ivar'])
@@ -277,7 +284,7 @@ else {
         qui count if ``j''!=.
         local reps=r(N)
         
-        gen b`j'_`ivar'=``j''
+        qui gen b`j'_`ivar'=``j''
         qui sum b`j'_`ivar'
         local beta`j'_`indepvar' = `beta' 
         local cand_`indepvar' `cand_`indepvar'' `j'
@@ -289,7 +296,7 @@ else {
     tokenize `stdests'
     foreach se of numlist `stderrs' {
         local ++j
-        gen se`j'_`ivar'=``j''
+        qui gen se`j'_`ivar'=``j''
         if length(`"`nulls'"')==0    local beta0`j'_`indepvar'=0 
         
         local se`j' = `se'
@@ -362,8 +369,11 @@ foreach ivar in `indepvar' {
             local cnum = r(N)
             if length(`"`plusone'"')!=0      local pval = (`cnum')/(`reps')
             else if length(`"`plusone'"')==0 local pval = (`cnum'+1)/(`reps'+1)
+
             
-            qui count if `ovar'>=`maxt' & `maxt'!=.
+            ***24/02/2020: CHANGED BELOW LINE
+            *qui count if `ovar'>=`maxt' & `maxt'!=.
+            qui count if `ovar'>=`maxt' & `ovar'!=.
             local cnum = r(N)
             if length(`"`plusone'"')!=0      local pvalBS = `cnum'/`reps'
             else if length(`"`plusone'"')==0 local pvalBS = (`cnum'+1)/(`reps'+1)
@@ -478,6 +488,7 @@ restore
 *-------------------------------------------------------------------------------
 *--- Report and export p-values
 *-------------------------------------------------------------------------------
+ereturn clear
 local vardisplay
 local linelength=0
 foreach var of varlist `varlist' {
