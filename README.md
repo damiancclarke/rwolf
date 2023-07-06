@@ -51,8 +51,200 @@ or using ```net install``` command:
 net install rwolf, from("https://raw.githubusercontent.com/damiancclarke/rwolf/master") replace
 ```
 ## Syntax
+```s
+ rwolf depvars [if] [in] [weight], [options]
+```
+### Options
++ indepvar(varlist)        Indicates the independent (treatment) variable which is included
+                           in multiple hypothesis tests. This will typically be a single
+                           independent variable, however it is possible to indicate various
+                           independent (treatment) variables which are included in the same
+                           model, and the Romano-Wolf procedure will be implemented
+                           efficiently returning p-values for each dependent variable of
+                           interest, corresponding to each of the specified independent
+                           variables.  This option must be specified, unless the
+                           nobootstraps option is indicated.
++ method(regress | logit | probit | ivregress |...)
+                           Indicates to Stata how each of the multiple hypothesis tests are
+                           performed (ie the baseline models).  Any estimation command
+                           permitted by Stata can be included.  See regress for a full list
+                           of estimation commands in Stata.  If not specified, regress is
+                           assumed. If an IV regression is desired, this must be specified
+                           with ivregress only, and the iv() option below must be
+                           specified.
++ controls(varlist)        Lists all other control variables which are to be included in the
+                           model to be tested multiple times.  Any variable format accepted
+                           by varlist is permitted including time series and factor
+                           variables.
++ nulls(numlist)           Indicates the parameter values of interest used in each test. If
+                           specified, a single scalar value should be indicated for each of
+                           the multiple hypotheses tested, and these should be listed in
+                           the same order that variables are listed as depvars in the
+                           command syntax. In the case that multiple indepvars are
+                           specified, null parameters should be specified grouped first by
+                           indepvars and then by depvars. For example, if two independent
+                           variables are considered with four dependent variables, first
+                           the four null parameters associated with the first independent
+                           variable should be listed, followed by the four null parameters
+                           associated with the second independent variable. If this option
+                           is not used, it is assumed that each null hypothesis is that the
+                           parameter is equal to 0.
++ seed(#)                  Sets seed to indicate the initial value for the pseudo-random
+                           number generator.  # can be any integer between 0 and 2^31-1.
++ reps(#)                  Perform # bootstrap replication; default is reps(100).  Where
+                           possible prefer a larger number of replications for more precise
+                           p-values.  In IV models, a considerably larger number of
+                           replications is highly recommended.
++ verbose                   Requests additional output, including display of the initial
+                           (uncorrected) models estimated. This will also result in the
+                           generation of a summary output message indicating the number of
+                           hypotheses rejected in uncorrected models and when implementing
+                           the Romano-Wolf correction, as well as any dependent variables
+                           for which the null is rejected in the Romano-Wolf procedure.
++ strata(varlist)           specifies the variables identifying strata.  If strata() is
+                           specified, bootstrap samples are selected within each stratum
+                           when forming the resampled null distributions.
++ cluster(varlist)          specifies the variables identifying resampling clusters.  If
+                           cluster() is specified, the sample drawn when forming the
+                           resampled null distributions is a bootstrap sample of clusters.
+                           This option does not cluster standard errors in each original
+                           regression.  If desired, this should be additionally specified
+                           using vce(cluster clustvar).  It is suggested that these options
+                           be used together to ensure that underlying regression models and
+                           bootstrap resampling obey the same clustering schemes.  If
+                           vce(cluster clustvar) is indicated, it is assumed that a
+                           clustered bootstrap resample is desired, and cluster() will
+                           cluster on the same {cmd clustvar}.  If this is not desired, the
+                           regcluster() option should be used, which allows for a cluster
+                           variable to be passed only to the underlying regressions, or for
+                           different cluster variables to be used for the regression, and
+                           the bootstrap resamples.
++ regcluster(varname)       allows for a cluster variable to be passed directly to the
+                           regressions used in each test.  This option allows for different
+                           variables to be used for clustering in the underlying regression
+                           (via regcluster()) and the bootstrap resample (via clustvar()),
+                           or for a variable to be used to cluster the underlying
+                           regression, but not cluster the bootstrap resample procedure.
++ onesided(string)          Indicates that p-values based on one-sided tests should be
+                           calculated.  Unless specified, p-values based on two-sided tests
+                           are provided, corresponding to the null that each parameter is
+                           equal to 0 (or the values indicated in nulls()). In onesided(
+                           string), string must be either "positive", in which case the
+                           null is that each parameter is greater than or equal to 0, or
+                           "negative" in which case the null is that each parameter is less
+                           than or equal to 0.
++ iv(varlist)               only necessary when method(ivregress) is specified.  The
+                           instrumental variables for the treatment variable of interest
+                           should be specified in iv().  At least as many instruments as
+                           endogenous variables must be included.
++ otherendog(varlist)       If more than one endogenous variable is required in ivregress
+                           models, additional endogenous variables can be included using
+                           this option.  By default, when ivregress is specified it is
+                           assumed that the variable specified in indepvar(varname) is an
+                           endogenous variable which must be instrumented.  If this is the
+                           case, the variable should not be entered again in otherendog(
+                           varlist).
++ indepexog                If ivregress is specified, but indepvar(varname) is an exogenous
+                           variable, indepexog should be indicated.  In this case all
+                           endogenous variables must be specified in otherendog(varlist)
+                           and all instruments must be specified in iv(varlist).
++ bl(string)               Allows for the inclusion of baseline measures of the dependent
+                           variable as controls in each model.  If desired, these variables
+                           should be created with some suffix, and the suffix should be
+                           included in the bl() option.  For example, if outcome variables
+                           are called y1, y2 and y3, variables y1_bl, y2_bl and y3_bl
+                           should be created with baseline values, and bl(_bl) should be
+                           specified.
++ noplusone                Calculate the Resampled and Romano-Wolf adjusted p-values without
+                           adding one to the numerator and denominator.
++ nodots                   Suppress replication dots in bootstrap resamples.
++ holm                     Along with standard output, additionally provide p-values
+                           corresponding to the Holm multiple hypothesis correction.
++ graph                    Requests that a graph be produced showing the Romano-Wolf null
+                           distribution corresponding to each variable examined.
++ varlabels                Name panels on the graph of null distributions using their
+                           variable labels rather than their variable names.
++ other options            Any additional options which correspond to the baseline regression
+                                 model.  All options permitted by the indicated method are
+                                 allowed.
+
+#### Options specific to cases where resampled estimates are user-provided
++ nobootstraps              Indicates that bootstrap replications do not need to be estimated
+                           by the rwolf command. In this case, each variable indicated in
+                           depvars must consist of M bootstrap realizations of the
+                           statistic of interest corresponding to each of the multiple
+                           baseline models. Additionally, for each variable indicated in
+                           depvars, the corresponding standard errors for each of the M
+                           bootstrap replicates should be stored as another variable, and
+                           these variables should be indicated as stdests(varlist).
+                           Finally, the original estimates corresponding to each model in
+                           the full sample should be provided in pointestimates(numlist),
+                           and the original standard errors should be provided in stderrs(
+                           numlist). This option may not be specified if indepvar() and
+                           method() are specified. For all standard implementations based
+                           on regression models, indepvar() and method() should be
+                           preferred.
++ pointestimates(numlist)   Provides the estimated statistics of interest in the full sample
+                           corresponding to each of the depvars indicated in the command.
+                           These estimates must be provided in the same order as the
+                           depvars are specified. This option may not be specified if
+                           indepvar() and method() are specified. For all standard
+                           implementations based on regression models, indepvar() and
+                           method() should be preferred.
++ stderrs(numlist)         Provides the estimated standard errors for each estimated
+                           statistic in the full sample. These estimates must be provided
+                           in the same order as the depvars are specified. This option may
+                           not be specified if indepvar() and method() are specified. For
+                           all standard implementations based on regression models,
+                           indepvar() and method() should be preferred.
++ stdests(varlist)         Contains variables consisting of estimated standard errors from
+                           each of the M resampled replications. These standard errors
+                           should correspond to the resampled estimates listed as each
+                           depvar and must be provided in the same order as the depvars are
+                           specified. This option may not be specified if indepvar() and
+                           method() are specified. For all standard implementations based
+                           on regression models, indepvar() and method() should be
+                           preferred.
++ nullimposed              Indicates that resamples are centered around the null, rather than
+                           the original estimate. This option is generally only used when
+                           permutations rather than bootstrap resamples are performed.
+
+
+
 
 ## Running an example
+```s
+sysuse auto
+
+. rwolf headroom turn price rep78, indepvar(weight) controls(trunk mpg) reps(250) seed(121316)
+Bootstrap replications (250). This may take some time.
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5
+..................................................     50
+..................................................     100
+..................................................     150
+..................................................     200
+..................................................     250
+
+
+
+
+Romano-Wolf step-down adjusted p-values
+
+
+Independent variable:  weight
+Outcome variables:   headroom turn price rep78
+Number of resamples: 250
+
+
+------------------------------------------------------------------------------
+   Outcome Variable | Model p-value    Resample p-value    Romano-Wolf p-value
+--------------------+---------------------------------------------------------
+           headroom |    0.6719             0.6574              0.6574
+               turn |    0.0000             0.0040              0.0040
+              price |    0.0075             0.0359              0.0478
+              rep78 |    0.0998             0.0797              0.1474
+------------------------------------------------------------------------------
+```
 
 ### References
 D. Clarke, J. P. Romano, and M. Wolf. **[The Romano–Wolf Multiple­-hypothesis Correction in Stata](https://journals.sagepub.com/doi/abs/10.1177/1536867X20976314)**. *The Stata Journal*, 20(4):812–843, 2020.
