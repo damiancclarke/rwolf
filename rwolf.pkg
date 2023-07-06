@@ -1,0 +1,8 @@
+v 3.1.0
+d 'RWOLF': Calculate Romano-Wolf stepdown p-values for multiple hypothesis testing
+d
+d Distribution-Date:   2020-07-01
+d License: GNU v3.0
+d
+F rwolf.ado
+F rwolf.sthlp
