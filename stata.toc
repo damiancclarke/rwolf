@@ -1,0 +1,8 @@
+v 3.1.0
+d Damian Clarke
+d dclarke@fen.uchile.cl
+d https://github.com/damiancclarke/rwolf
+
+d 'rwolf': Calculate Romano-Wolf stepdown p-values for multiple hypothesis testing
+
+p rwolf
