@@ -316,7 +316,8 @@ dependent variable--independent variable pair will be returned using both variab
 {p2col 5 20 24 2: Matrix}{p_end}
 {synopt:{cmd:e(RW)}}The full set of Romano-Wolf corrected p-values, as well as the uncorrected p-values estimated by bootstrap and the baseline model (if relevant).{p_end}
 
-{synopt:{cmd:e(RW_indepvar)}}In the case that multiple independent variables are indicated, the full set of Romano-Wolf corrected p-values, as well as the uncorrected p-values estimated by bootstrap and the baseline model (if relevant) are returned corresponding to each {cmd:indepvar}.{p_end}
+{synopt:{cmd:e(RW_indepvar)}}In the case that multiple independent variables are indicated, the full set of Romano-Wolf corrected p-values,
+as well as the uncorrected p-values estimated by bootstrap and the baseline model (if relevant) are returned corresponding to each {cmd:indepvar}.{p_end}
 
 {p2colreset}{...}
 
